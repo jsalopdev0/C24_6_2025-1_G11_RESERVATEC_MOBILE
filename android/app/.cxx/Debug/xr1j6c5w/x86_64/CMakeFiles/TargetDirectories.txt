@@ -1,0 +1,2 @@
+/Users/jorgesalas/Reservatec/reservatec/android/app/.cxx/Debug/xr1j6c5w/x86_64/CMakeFiles/edit_cache.dir
+/Users/jorgesalas/Reservatec/reservatec/android/app/.cxx/Debug/xr1j6c5w/x86_64/CMakeFiles/rebuild_cache.dir

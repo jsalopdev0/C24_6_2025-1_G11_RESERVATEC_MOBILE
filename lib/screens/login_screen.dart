@@ -23,7 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = await signIn.signIn();
       if (user == null) return;
 
-      final auth = await user.authentication;
       final name = user.displayName ?? "Sin nombre";
       final email = user.email;
       final photo = user.photoUrl ?? "";
@@ -36,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (backendResponse != null) {
         await Storage.saveUserSession(
+          userId: backendResponse['id'],
           name: backendResponse['name'],
           email: backendResponse['email'],
           photo: backendResponse['foto'] ?? '',
@@ -46,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => HomeScreen(
+              userId: backendResponse['id'],
               name: backendResponse['name'],
               email: backendResponse['email'],
               photoUrl: backendResponse['foto'] ?? '',
@@ -73,42 +74,69 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/images/cancha.jpg', fit: BoxFit.cover),
-          Container(color: Colors.black.withOpacity(0.3)),
+          // Imagen de fondo cancha
+          Image.asset(
+            'assets/images/cancha.jpg',
+            fit: BoxFit.cover,
+          ),
+
+          // Degradado azul con transparencia encima
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF00B2E2).withOpacity(0.85),
+                  const Color(0xFF00B2E2).withOpacity(0.85),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+
+          // Contenido
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 30.w),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'ReservaTec',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 42.sp,
-                    fontWeight: FontWeight.bold,
-                    shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-                  ),
+                // Logo ampliado x2.5
+                Image.asset(
+                  'assets/images/logoreservatec.png',
+                  height: 250.h, // Aumentado
                 ),
-                SizedBox(height: 24.h),
-                Text(
-                  'Organiza, reserva y disfruta\nde tus espacios deportivos\nde manera simple y rápida.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 18.sp, height: 1.5),
-                ),
-                SizedBox(height: 60.h),
-                ElevatedButton.icon(
-                  icon: Image.asset('assets/icons/google.png', height: 24.h),
-                  label: Text(
-                    'Ingresa con tu correo de Tecsup',
-                    style: TextStyle(fontSize: 16.sp),
+                SizedBox(height: 80.h),
+
+                // Botón Google
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: handleGoogleSignIn,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black87,
+                      padding: EdgeInsets.symmetric(vertical: 16.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32.r),
+                      ),
+                      elevation: 4,
+                      shadowColor: Colors.black26,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/icons/google.png',
+                          height: 32.h,
+                        ),
+                        SizedBox(width: 16.w),
+                        Text(
+                          'Ingresa con tu correo de Tecsup',
+                          style: TextStyle(fontSize: 16.sp),
+                        ),
+                      ],
+                    ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black87,
-                    padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.r)),
-                  ),
-                  onPressed: handleGoogleSignIn,
                 ),
               ],
             ),

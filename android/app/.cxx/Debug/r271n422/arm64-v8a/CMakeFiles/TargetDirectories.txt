@@ -1,0 +1,2 @@
+/Users/jorgesalas/Pictures/tesis 9 mayo/Reservatec/reservatec/android/app/.cxx/Debug/r271n422/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/jorgesalas/Pictures/tesis 9 mayo/Reservatec/reservatec/android/app/.cxx/Debug/r271n422/arm64-v8a/CMakeFiles/rebuild_cache.dir

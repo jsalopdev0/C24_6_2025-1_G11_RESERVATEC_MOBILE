@@ -1,0 +1,2 @@
+/Users/jorgesalas/Pictures/copia/Reservatec/reservatec/android/app/.cxx/RelWithDebInfo/6r4d5t21/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/jorgesalas/Pictures/copia/Reservatec/reservatec/android/app/.cxx/RelWithDebInfo/6r4d5t21/armeabi-v7a/CMakeFiles/rebuild_cache.dir

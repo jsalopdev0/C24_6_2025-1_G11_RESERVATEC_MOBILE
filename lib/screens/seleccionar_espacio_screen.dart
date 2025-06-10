@@ -1,48 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../models/espacio.dart';
+import '../services/espacio_service.dart';
 import 'seleccionar_horario_screen.dart';
 import '../widgets/app_tab_header.dart';
+import '../widgets/reserva_step_indicator.dart';
+import '../services/timer_service.dart';
 
-class SeleccionarEspacioScreen extends StatelessWidget {
+class SeleccionarEspacioScreen extends StatefulWidget {
   const SeleccionarEspacioScreen({super.key});
 
-  final List<Map<String, String>> espacios = const [
-    {
-      'nombre': 'Campo de Basket o Voley',
-      'imagen': 'assets/images/basket_voley.jpg',
-    },
-    {
-      'nombre': 'Campo de Fútbol 1',
-      'imagen': 'assets/images/basket_voley.jpg',
-    },
-    {
-      'nombre': 'Campo de Ping Pong',
-      'imagen': 'assets/images/basket_voley.jpg',
-    },
-    {
-      'nombre': 'Campo de Fútbol 2',
-      'imagen': 'assets/images/basket_voley.jpg',
-    },
-    {
-      'nombre': 'Campo de Frontón',
-      'imagen': 'assets/images/basket_voley.jpg',
-    },
-    {
-      'nombre': 'Tablero de Ajedrez',
-      'imagen': 'assets/images/basket_voley.jpg',
-    },
-    {
-      'nombre': 'Fútbol de Mesa',
-      'imagen': 'assets/images/basket_voley.jpg',
-    },
-    {
-      'nombre': 'Tablero de Ludo',
-      'imagen': 'assets/images/basket_voley.jpg',
-    },
-  ];
+  @override
+  State<SeleccionarEspacioScreen> createState() =>
+      _SeleccionarEspacioScreenState();
+}
+
+class _SeleccionarEspacioScreenState extends State<SeleccionarEspacioScreen>
+    with AutomaticKeepAliveClientMixin {
+  List<Espacio> espacios = [];
+  bool cargando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    TimerService.detener();
+    TimerService.iniciar();
+    _cargarEspacios();
+  }
+
+  Future<void> _cargarEspacios() async {
+    try {
+      final resultado = await EspacioService.obtenerEspaciosActivos();
+      setState(() {
+        espacios = resultado;
+        cargando = false;
+      });
+    } catch (e) {
+      print("Error al cargar espacios: $e");
+      setState(() => cargando = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: PreferredSize(
@@ -51,60 +53,100 @@ class SeleccionarEspacioScreen extends StatelessWidget {
           child: AppTabHeader(title: 'Seleccionar Espacio'),
         ),
       ),
-      body: Padding(
-        padding: EdgeInsets.all(16.w),
-        child: GridView.builder(
-          itemCount: espacios.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12.w,
-            mainAxisSpacing: 12.h,
-            childAspectRatio: 1.1,
-          ),
-          itemBuilder: (context, index) {
-            final espacio = espacios[index];
-            return GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SeleccionarHorarioScreen(
-                      nombreEspacio: espacio['nombre']!,
-                      imagen: espacio['imagen']!,
+      body: cargando
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const ReservaStepIndicator(activeStep: 0),
+                  SizedBox(height: 16.h),
+                  Expanded(
+                    child: GridView.builder(
+                      itemCount: espacios.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12.w,
+                        mainAxisSpacing: 12.h,
+                        childAspectRatio: 1.1,
+                      ),
+                      itemBuilder: (context, index) {
+                        final espacio = espacios[index];
+                        return GestureDetector(
+                          onTap: () async {
+                            TimerService.iniciar();
+
+                            final confirmado = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SeleccionarHorarioScreen(
+                                  espacioId: espacio.id,
+                                  nombreEspacio: espacio.nombre,
+                                  imagen: espacio.foto,
+                                ),
+                              ),
+                            );
+
+                            if (confirmado == true && context.mounted) {
+                              Navigator.pop(context, true);
+                            }
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16.r),
+                            ),
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: Transform.rotate(
+                                    angle: Theme.of(context).platform ==
+                                            TargetPlatform.android
+                                        ? 3.1416
+                                        : 0, // 180 grados
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16.r),
+                                      child: CachedNetworkImage(
+                                        imageUrl: espacio.foto,
+                                        fit: BoxFit.cover,
+                                        color: Colors.black.withOpacity(0.25),
+                                        colorBlendMode: BlendMode.darken,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Align(
+                                  alignment: Alignment.bottomLeft,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(12.w),
+                                    child: Text(
+                                      espacio.nombre,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.bold,
+                                        shadows: const [
+                                          Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 3)
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                );
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16.r),
-                  image: DecorationImage(
-                    image: AssetImage(espacio['imagen']!),
-                    fit: BoxFit.cover,
-                    colorFilter: ColorFilter.mode(
-                      Colors.black.withOpacity(0.25),
-                      BlendMode.darken,
-                    ),
-                  ),
-                ),
-                alignment: Alignment.bottomLeft,
-                padding: EdgeInsets.all(12.w),
-                child: Text(
-                  espacio['nombre']!,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.bold,
-                    shadows: const [
-                      Shadow(color: Colors.black54, blurRadius: 3)
-                    ],
-                  ),
-                ),
+                ],
               ),
-            );
-          },
-        ),
-      ),
+            ),
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }

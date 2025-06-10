@@ -1,6 +1,4 @@
 import 'dart:convert';
-// import 'dart:io' show Platform;
-// import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:reservatec/services/unsafe_http_client.dart';
 
@@ -16,9 +14,8 @@ class AuthService {
   }
 
   static String getBackendUrl() {
-  return 'https://reservatec-tesis-backend-8asuen-298379-31-220-104-112.traefik.me/api/usuario/validar';
-}
-
+    return 'https://reservatec-tesis-backend-8asuen-626be2-31-220-104-112.traefik.me/api/usuario/validar';
+  }
 
   static Future<Map<String, dynamic>?> validarConBackend({
     required String name,
@@ -27,7 +24,7 @@ class AuthService {
   }) async {
     final url = getBackendUrl();
     final safePhoto = photo.isNotEmpty ? photo : null;
-final client = UnsafeHttpClient.create();
+    final client = UnsafeHttpClient.create();
 
     final Map<String, dynamic> data = {
       'email': email,
@@ -42,19 +39,21 @@ final client = UnsafeHttpClient.create();
 
     try {
       final response = await client.post(
-  Uri.parse(url),
-  headers: {'Content-Type': 'application/json'},
-  body: jsonEncode(data),
-);
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(data),
+      );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final decoded = jsonDecode(response.body);
+        print("🔐 Token recibido: ${decoded['token']}");
+        return decoded;
       } else {
         print("Login denegado: ${response.statusCode} - ${response.body}");
         return null;
       }
     } catch (e) {
-      print("Error al conectarse con el backend: $e");
+      print("❌ Error al conectarse con el backend: $e");
       return null;
     }
   }

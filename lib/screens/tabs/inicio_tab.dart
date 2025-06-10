@@ -1,9 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:reservatec/models/reserva.dart';
+import 'package:reservatec/services/reserva_service.dart';
 import 'package:reservatec/services/storage.dart';
 
 class InicioTab extends StatefulWidget {
-  const InicioTab({super.key});
+  final VoidCallback? onReservarAhora;
+
+  const InicioTab({super.key, this.onReservarAhora});
 
   @override
   State<InicioTab> createState() => _InicioTabState();
@@ -11,19 +18,14 @@ class InicioTab extends StatefulWidget {
 
 class _InicioTabState extends State<InicioTab> {
   String userName = '';
-  int _currentPage = 0;
-  final PageController _pageController = PageController();
-
-  final List<String> frases = [
-    'En la cancha, como en la vida,\nlos retos están para superarlos.',
-    'El juego limpio también\nse juega fuera del campo.',
-    'Haz de cada reserva una victoria\npersonal.',
-  ];
+  List<Reserva> reservasRecientes = [];
+  bool _cargando = false;
 
   @override
   void initState() {
     super.initState();
     _loadUser();
+    _loadReservas();
   }
 
   Future<void> _loadUser() async {
@@ -35,166 +37,127 @@ class _InicioTabState extends State<InicioTab> {
     }
   }
 
+  Future<void> _loadReservas() async {
+    setState(() => _cargando = true);
+    try {
+      final reservas = await ReservaService.obtenerMisReservas();
+      reservas.sort((a, b) => b.fecha.compareTo(a.fecha));
+      setState(() {
+        reservasRecientes = reservas.take(5).toList();
+      });
+    } catch (e) {
+      debugPrint('❌ Error cargando reservas: $e');
+    }
+    setState(() => _cargando = false);
+  }
+
+  String formatearFecha(String fechaISO) {
+    final fecha = DateTime.parse(fechaISO);
+    return DateFormat("EEEE, d 'de' MMMM 'de' y", 'es_ES').format(fecha);
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(16.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: RefreshIndicator(
+        onRefresh: _loadReservas,
+        color: const Color(0xFF00AEEF),
+        child: ListView(
+          padding: EdgeInsets.all(16.w),
           children: [
-            AnimatedOpacity(
-              opacity: userName.isEmpty ? 0 : 1,
-              duration: const Duration(milliseconds: 800),
-              child: Text(
-                "Hola, $userName 👋",
-                style: TextStyle(fontSize: 26.sp, fontWeight: FontWeight.bold),
-              ),
+            Text(
+              "Hola, $userName 👋",
+              style: TextStyle(fontSize: 26.sp, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 24.h),
-
-            // ⛅ Clima y Próxima reserva
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 157.h,
-                    padding: EdgeInsets.all(16.w),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD9D9D9),
-                      borderRadius: BorderRadius.circular(20.r),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Lima, Perú",
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16.sp)),
-                        SizedBox(height: 6.h),
-                        Text("☀️ 34°", style: TextStyle(fontSize: 28.sp)),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(width: 12.w),
-                Expanded(
-                  child: Container(
-                    height: 157.h,
-                    padding: EdgeInsets.all(16.w),
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(20.r),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("Tu próxima\nreserva empieza en",
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14.sp,
-                                height: 1.3)),
-                        const Spacer(),
-                        CircleAvatar(
-                          radius: 22.r,
-                          backgroundColor: Colors.yellow,
-                          child: Text("20 min",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14.sp)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 24.h),
-
-            // 🏃‍♂️ Bienestar card
             Container(
-              height: 180.h,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16.r),
-                color: const Color(0xFF00BDF0),
-                image: const DecorationImage(
-                  image: AssetImage('assets/images/player.jpeg'),
-                  alignment: Alignment.centerRight,
-                  fit: BoxFit.contain,
-                ),
-              ),
               padding: EdgeInsets.all(16.w),
-              child: Text(
-                'Porque tu bienestar\nempieza aquí:\nreserva, juega\ny gana',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18.sp,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0066FF),
+                borderRadius: BorderRadius.circular(16.r),
               ),
-            ),
-
-            SizedBox(height: 16.h),
-
-            // 🎯 Frases motivacionales - PageView
-            SizedBox(
-              height: 158.h,
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: frases.length,
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentPage = index;
-                  });
-                },
-                itemBuilder: (context, index) {
-                  return Container(
-                    margin: EdgeInsets.symmetric(horizontal: 6.w),
-                    padding: EdgeInsets.all(16.w),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16.r),
-                      image: const DecorationImage(
-                        image: AssetImage("assets/images/cancha_bg.jpeg"),
-                        fit: BoxFit.cover,
-                        colorFilter: ColorFilter.mode(
-                          Colors.black54,
-                          BlendMode.darken,
-                        ),
-                      ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Porque tu bienestar empieza aquí:\nreserva, juega y gana',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18.sp,
+                      fontWeight: FontWeight.bold,
+                      height: 1.5,
                     ),
-                    child: Text(
-                      frases[index],
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            SizedBox(height: 12.h),
-            // Indicadores
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(frases.length, (index) {
-                final isActive = _currentPage == index;
-                return Container(
-                  margin: EdgeInsets.symmetric(horizontal: 4.w),
-                  width: isActive ? 12.w : 8.w,
-                  height: 8.w,
-                  decoration: BoxDecoration(
-                    color: isActive ? Colors.blue : Colors.grey,
-                    borderRadius: BorderRadius.circular(4.r),
                   ),
-                );
-              }),
+                  SizedBox(height: 16.h),
+                  ElevatedButton.icon(
+                    onPressed: widget.onReservarAhora,
+                    icon: const Icon(Icons.calendar_today),
+                    label: const Text("Reservar Ahora"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.blue,
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 20.w, vertical: 12.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             SizedBox(height: 24.h),
+            Container(
+              padding: EdgeInsets.all(16.w),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(16.r),
+              ),
+              child: Text(
+                '👉 Recuerda confirmar tu asistencia apenas llegues. ¡Es rápido y ayuda a mantener tu historial limpio!',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                  height: 1.4,
+                ),
+              ),
+            ),
+            SizedBox(height: 24.h),
+            Container(
+              padding: EdgeInsets.all(16.w),
+              decoration: BoxDecoration(
+                color: Colors.blueGrey.shade100,
+                borderRadius: BorderRadius.circular(16.r),
+              ),
+              child: Text(
+                'Haz de cada reserva una victoria personal 💪',
+                style: GoogleFonts.poppins(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            SizedBox(height: 24.h),
+            Text(
+              "Tus reservas recientes:",
+              style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 12.h),
+            if (_cargando)
+              const Center(child: CircularProgressIndicator())
+            else if (reservasRecientes.isEmpty)
+              Text("No hay reservas recientes.",
+                  style: TextStyle(fontSize: 14.sp, color: Colors.black54))
+            else
+              ...reservasRecientes.map((r) => ListTile(
+                    leading: Icon(Icons.calendar_month, color: Colors.blue),
+                    title: Text("Espacio: ${r.espacio}"),
+                    subtitle: Text(
+                      "${formatearFecha(r.fecha)} | ${r.horaInicio} a ${r.horaFin}",
+                    ),
+                  )),
           ],
         ),
       ),

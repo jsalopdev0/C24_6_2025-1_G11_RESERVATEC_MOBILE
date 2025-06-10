@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/Users/jorgesalas/dev_tools/flutter/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/jorgesalas/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/jorgesalas/Pictures/copia/Reservatec/reservatec/android/app/.cxx/Debug/2e682n41/x86",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/jorgesalas/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/jorgesalas/Pictures/copia/Reservatec/reservatec/android/app/.cxx/Debug/2e682n41/x86",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}

@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart';
+import '../models/horario.dart';
+import '../models/reserva.dart';
+import '../services/horario_service.dart';
+import '../services/reserva_service.dart';
 import '../screens/comprobar_reserva_screen.dart';
 import '../widgets/reserva_step_indicator.dart';
-import '../widgets/app_tab_header.dart';
+import '../widgets/contador_reserva.dart';
+import '../services/timer_service.dart';
 
 class SeleccionarHorarioScreen extends StatefulWidget {
+  final int espacioId;
   final String nombreEspacio;
   final String imagen;
 
   const SeleccionarHorarioScreen({
     super.key,
+    required this.espacioId,
     required this.nombreEspacio,
     required this.imagen,
   });
@@ -20,171 +28,471 @@ class SeleccionarHorarioScreen extends StatefulWidget {
 }
 
 class _SeleccionarHorarioScreenState extends State<SeleccionarHorarioScreen> {
-  final List<String> horarios = [
-    '08:00 AM',
-    '09:00 AM',
-    '10:00 AM',
-    '11:00 AM',
-    '12:00 PM',
-    '01:00 PM',
-  ];
+  List<Horario> horarios = [];
+  List<int> horariosOcupados = [];
+  List<DateTime> fechasNoDisponibles = [];
+  Horario? seleccionado;
+  DateTime fechaSeleccionada = DateTime.now();
+  bool cargando = true;
+  Reserva? reservaPendiente;
+  bool _procesando = false;
 
-  String? horaInicio;
-  String? horaFin;
+  @override
+  void initState() {
+    super.initState();
+    TimerService.iniciar();
+    _cargarFechasNoDisponibles();
+    _cargarHorarios();
+    _verificarReservaPendiente();
+  }
 
-  void seleccionarHora(String hora) {
-    if (horaInicio == null) {
-      setState(() => horaInicio = hora);
-    } else if (horaFin == null && hora != horaInicio) {
-      setState(() => horaFin = hora);
-    } else {
-      setState(() {
-        horaInicio = hora;
-        horaFin = null;
-      });
+  Future<void> _cargarFechasNoDisponibles() async {
+    try {
+      fechasNoDisponibles =
+          await HorarioService.obtenerFechasOcupadas(widget.espacioId);
+    } catch (e) {
+      print("❌ Error al cargar fechas ocupadas: $e");
     }
+  }
+
+  Future<void> _cargarHorarios() async {
+    try {
+      print("🕒 Solicitando horarios ocupados para: $fechaSeleccionada");
+
+      final resultado = await HorarioService.obtenerHorariosActivos();
+      final ocupados = await HorarioService.obtenerHorariosOcupados(
+          widget.espacioId, fechaSeleccionada);
+
+      print("✅ Horarios activos: ${resultado.map((h) => h.id).toList()}");
+      print("❌ Horarios ocupados: $ocupados");
+
+      setState(() {
+        horarios = resultado;
+        horariosOcupados = ocupados;
+        cargando = false;
+      });
+    } catch (e) {
+      print("❌ Error al cargar horarios: $e");
+      setState(() => cargando = false);
+    }
+  }
+
+  void _verificarReservaPendiente() async {
+    try {
+      final reservas = await ReservaService.obtenerMisReservas();
+      final pendientes =
+          reservas.where((r) => r.estado == 'PENDIENTE').toList();
+      if (pendientes.isNotEmpty) {
+        setState(() => reservaPendiente = pendientes.first);
+      }
+    } catch (e) {
+      print('⚠️ Error al verificar reserva pendiente: $e');
+    }
+  }
+
+  Future<void> _seleccionarFecha() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final DateTime? nuevaFecha = await showDatePicker(
+      context: context,
+      initialDate:
+          fechaSeleccionada.isBefore(today) ? today : fechaSeleccionada,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 30)),
+      locale: const Locale('es', 'ES'),
+      selectableDayPredicate: (date) => !fechasNoDisponibles
+          .contains(DateTime(date.year, date.month, date.day)),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            primaryColor: const Color(0xFF00AEEF),
+            dialogBackgroundColor: Colors.grey[100],
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF00AEEF),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (nuevaFecha != null) {
+      setState(() {
+        fechaSeleccionada = nuevaFecha;
+        cargando = true;
+      });
+      await _cargarHorarios();
+    }
+  }
+
+  String formatearFecha(DateTime fecha) {
+    final formatter = DateFormat.yMMMMEEEEd('es_ES');
+    return formatter
+        .format(fecha)
+        .replaceFirstMapped(RegExp(r'^\w'), (m) => m.group(0)!.toUpperCase());
   }
 
   @override
   Widget build(BuildContext context) {
-    const fecha = 'Viernes, 10 de abril';
+    final fechaFormateada = formatearFecha(fechaSeleccionada);
 
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(80.h),
-        child: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.arrow_back),
-                ),
-                SizedBox(width: 12.w),
-                Text(
-                  'Seleccionar Horario', // Cambia según el screen
-                  style: TextStyle(
-                    fontSize: 24.sp,
-                    fontWeight: FontWeight.bold,
+    return WillPopScope(
+      onWillPop: () async {
+        try {
+          if (reservaPendiente != null) {
+            await ReservaService.cancelarReservaTemporal(reservaPendiente!.id);
+            debugPrint('✅ Reserva temporal cancelada');
+          }
+        } catch (e) {
+          debugPrint('❌ Error al cancelar reserva pendiente: $e');
+        }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey[100],
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(80.h),
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () async {
+                      try {
+                        if (reservaPendiente != null) {
+                          await ReservaService.cancelarReservaTemporal(
+                              reservaPendiente!.id);
+                          debugPrint(
+                              '✅ Reserva temporal cancelada desde botón');
+                        }
+                      } catch (e) {
+                        debugPrint('❌ Error desde botón: $e');
+                      }
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                    child: const Icon(Icons.arrow_back),
                   ),
-                ),
-              ],
+                  SizedBox(width: 12.w),
+                  Text(
+                    'Seleccionar Horario',
+                    style: TextStyle(
+                      fontSize: 24.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-      body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const ReservaStepIndicator(activeStep: 1),
-            SizedBox(height: 16.h),
-            Text('Espacio Seleccionado:', style: TextStyle(fontSize: 16.sp)),
-            SizedBox(height: 8.h),
-            Container(
-              height: 160.h,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16.r),
-                image: DecorationImage(
-                  image: AssetImage(widget
-                      .imagen), // Usa AssetImage o NetworkImage según corresponda
-                  fit: BoxFit.cover,
-                  colorFilter: ColorFilter.mode(
-                      Colors.black.withOpacity(0.25), BlendMode.darken),
-                ),
-              ),
-              alignment: Alignment.bottomLeft,
-              padding: EdgeInsets.all(12.w),
-              child: Text(
-                widget.nombreEspacio,
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16.sp),
-              ),
-            ),
-            SizedBox(height: 24.h),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 20),
-                SizedBox(width: 8.w),
-                Text(fecha, style: TextStyle(fontSize: 16.sp)),
-              ],
-            ),
-            SizedBox(height: 16.h),
-            Wrap(
-              spacing: 10.w,
-              runSpacing: 10.h,
-              children: horarios.map((hora) {
-                final seleccionado = hora == horaInicio || hora == horaFin;
-                return GestureDetector(
-                  onTap: () => seleccionarHora(hora),
-                  child: Container(
+        body: cargando
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Padding(
                     padding:
-                        EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(
-                        color: seleccionado
-                            ? Colors.blueAccent
-                            : Colors.grey.shade300,
-                      ),
-                      color: seleccionado
-                          ? Colors.blueAccent.withOpacity(0.15)
-                          : Colors.white,
-                    ),
-                    child: Text(
-                      hora,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color:
-                            seleccionado ? Colors.blueAccent : Colors.black87,
+                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                    child: SizedBox(
+                      height: 40.h,
+                      child: Stack(
+                        children: [
+                          const ReservaStepIndicator(activeStep: 1),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Padding(
+                              padding: EdgeInsets.only(right: 4.w),
+                              child: const ContadorReserva(),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                );
-              }).toList(),
-            ),
-            SizedBox(height: 24.h),
-            Text(
-              'Recuerda: Solo puedes separar máximo 2 horas seguidas y una vez por semana.',
-              style: TextStyle(fontSize: 13.sp, color: Colors.grey[700]),
-            ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: horaInicio != null
-                    ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ComprobarReservaScreen(
-                              espacio: widget.nombreEspacio,
-                              imagen: widget.imagen,
-                              horario:
-                                  '$horaInicio${horaFin != null ? ' - $horaFin' : ''}',
-                              fecha: fecha,
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: 12.h),
+                          Text('Espacio Seleccionado:',
+                              style: TextStyle(fontSize: 16.sp)),
+                          SizedBox(height: 8.h),
+                          Container(
+                            height: 160.h,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16.r),
+                            ),
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: Transform.rotate(
+                                    angle: Theme.of(context).platform ==
+                                            TargetPlatform.android
+                                        ? 3.1416
+                                        : 0,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16.r),
+                                      child: Image.network(
+                                        widget.imagen,
+                                        fit: BoxFit.cover,
+                                        color: Colors.black.withOpacity(0.25),
+                                        colorBlendMode: BlendMode.darken,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Align(
+                                  alignment: Alignment.bottomLeft,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(12.w),
+                                    child: Text(
+                                      widget.nombreEspacio,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16.sp,
+                                        shadows: const [
+                                          Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 3),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        );
-                      }
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 14.h),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r)),
-                ),
-                child: Text('Continuar', style: TextStyle(fontSize: 16.sp)),
+                          SizedBox(height: 24.h),
+                          Text('Selecciona la fecha:',
+                              style: TextStyle(
+                                  fontSize: 15.sp,
+                                  fontWeight: FontWeight.w600)),
+                          SizedBox(height: 8.h),
+                          GestureDetector(
+                            onTap: _seleccionarFecha,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 14.w, vertical: 14.h),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12.r),
+                                border: Border.all(color: Colors.blueAccent),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today_outlined,
+                                      size: 20),
+                                  SizedBox(width: 8.w),
+                                  Text(fechaFormateada,
+                                      style: TextStyle(fontSize: 15.sp)),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 24.h),
+                          Text('Selecciona el horario:',
+                              style: TextStyle(
+                                  fontSize: 15.sp,
+                                  fontWeight: FontWeight.w600)),
+                          SizedBox(height: 12.h),
+                          if (horarios.isEmpty ||
+                              horarios.length == horariosOcupados.length)
+                            Text(
+                                'Todos los horarios ya están reservados para esta fecha.',
+                                style: TextStyle(
+                                    fontSize: 14.sp, color: Colors.redAccent)),
+                          GridView.count(
+                            shrinkWrap: true,
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12.w,
+                            mainAxisSpacing: 12.h,
+                            childAspectRatio: 2.8,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: horarios.map((h) {
+                              final now = DateTime.now();
+                              final hoy =
+                                  DateTime(now.year, now.month, now.day);
+                              final seleccionada = DateTime(
+                                fechaSeleccionada.year,
+                                fechaSeleccionada.month,
+                                fechaSeleccionada.day,
+                              );
+
+                              final horaInicio = TimeOfDay(
+                                hour: int.parse(h.horaInicio.substring(0, 2)),
+                                minute: int.parse(h.horaInicio.substring(3, 5)),
+                              );
+
+                              final horaFin = TimeOfDay(
+                                hour: int.parse(h.horaFin.substring(0, 2)),
+                                minute: int.parse(h.horaFin.substring(3, 5)),
+                              );
+
+                              final dtInicio = DateTime(
+                                fechaSeleccionada.year,
+                                fechaSeleccionada.month,
+                                fechaSeleccionada.day,
+                                horaInicio.hour,
+                                horaInicio.minute,
+                              );
+
+                              final dtFin = DateTime(
+                                fechaSeleccionada.year,
+                                fechaSeleccionada.month,
+                                fechaSeleccionada.day,
+                                horaFin.hour,
+                                horaFin.minute,
+                              );
+
+                              final esPasado = now.isAfter(dtFin);
+
+                              final enCursoYQuedaPoco = now.isAfter(dtInicio) &&
+                                  now.isBefore(dtFin) &&
+                                  dtFin.difference(now).inMinutes < 30;
+
+                              final ocupado = horariosOcupados.contains(h.id) ||
+                                  esPasado ||
+                                  enCursoYQuedaPoco;
+                              final esSeleccionado = seleccionado?.id == h.id;
+
+                              return GestureDetector(
+                                onTap: ocupado
+                                    ? null
+                                    : () => setState(() => seleccionado = h),
+                                child: Opacity(
+                                  opacity: ocupado ? 0.5 : 1,
+                                  child: Container(
+                                    padding:
+                                        EdgeInsets.symmetric(vertical: 10.h),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12.r),
+                                      border: Border.all(
+                                        color: esSeleccionado
+                                            ? Colors.blueAccent
+                                            : Colors.grey.shade300,
+                                      ),
+                                      color: esSeleccionado
+                                          ? Colors.blueAccent.withOpacity(0.15)
+                                          : Colors.white,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.schedule,
+                                            size: 16,
+                                            color:
+                                                ocupado ? Colors.grey : null),
+                                        SizedBox(width: 6.w),
+                                        Text(
+                                          '${h.horaInicio.substring(0, 5)} - ${h.horaFin.substring(0, 5)}',
+                                          style: TextStyle(
+                                            fontSize: 13.sp,
+                                            color: ocupado
+                                                ? Colors.grey
+                                                : Colors.black,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          SizedBox(height: 16.h),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: (seleccionado != null)
+                            ? () async {
+                                if (_procesando) return;
+                                _procesando = true;
+
+                                try {
+                                  final reserva =
+                                      await ReservaService.crearReservaTemporal(
+                                    espacioId: widget.espacioId,
+                                    horarioId: seleccionado!.id,
+                                    fecha: fechaSeleccionada,
+                                  );
+
+                                  final ttl = await ReservaService.obtenerTTL(
+                                    widget.espacioId,
+                                    seleccionado!.id,
+                                    fechaSeleccionada,
+                                  );
+                                  TimerService.iniciar(desdeRedis: ttl);
+
+                                  final confirmado = await Navigator.push<bool>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ComprobarReservaScreen(
+                                        reservaId: reserva['id'],
+                                        espacio: widget.nombreEspacio,
+                                        imagen: widget.imagen,
+                                        horario:
+                                            '${seleccionado!.horaInicio.substring(0, 5)} - ${seleccionado!.horaFin.substring(0, 5)}',
+                                        fecha:
+                                            formatearFecha(fechaSeleccionada),
+                                      ),
+                                    ),
+                                  );
+
+                                  if (confirmado == true && context.mounted) {
+                                    Navigator.pop(context, true);
+                                  } else {
+                                    await ReservaService
+                                        .cancelarReservaTemporal(reserva['id']);
+                                  }
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        e
+                                            .toString()
+                                            .replaceFirst('Exception: ', ''),
+                                        style: TextStyle(
+                                            color: Colors.black87,
+                                            fontSize: 14.sp),
+                                      ),
+                                      backgroundColor: const Color(0xFFF7CC41),
+                                      duration: const Duration(seconds: 3),
+                                    ),
+                                  );
+                                } finally {
+                                  _procesando = false;
+                                }
+                              }
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00AEEF),
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 14.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.r),
+                          ),
+                        ),
+                        child: Text('Continuar',
+                            style: TextStyle(fontSize: 16.sp)),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            SizedBox(height: 20.h),
-          ],
-        ),
       ),
     );
   }

@@ -1,9 +1,7 @@
-// lib/widgets/app_tab_header.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-/// Header simple solo con título, alineado a la izquierda.
+
 class AppTabHeader extends StatelessWidget {
   final String title;
 
@@ -44,7 +42,7 @@ class AppTabHeaderAcciones extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center, // 👈 clave para alineación
+        crossAxisAlignment: CrossAxisAlignment.center, 
         children: [
           Text(
             title,

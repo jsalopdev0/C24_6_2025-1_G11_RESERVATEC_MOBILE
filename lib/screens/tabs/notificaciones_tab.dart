@@ -40,7 +40,7 @@ class _NotificacionesTabState extends State<NotificacionesTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const AppTabHeader(title: 'Notificaciones'),
+            const AppTabHeader(title: 'Alertas'),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w),
               child: Text(

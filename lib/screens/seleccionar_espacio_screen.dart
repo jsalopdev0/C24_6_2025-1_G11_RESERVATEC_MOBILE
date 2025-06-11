@@ -76,18 +76,16 @@ class _SeleccionarEspacioScreenState extends State<SeleccionarEspacioScreen>
                         return GestureDetector(
                           onTap: () async {
                             TimerService.iniciar();
-
                             final confirmado = await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => SeleccionarHorarioScreen(
                                   espacioId: espacio.id,
                                   nombreEspacio: espacio.nombre,
-                                  imagen: espacio.foto,
+                                  imagen: espacio.foto, // ya Cloudinary
                                 ),
                               ),
                             );
-
                             if (confirmado == true && context.mounted) {
                               Navigator.pop(context, true);
                             }
@@ -99,19 +97,43 @@ class _SeleccionarEspacioScreenState extends State<SeleccionarEspacioScreen>
                             child: Stack(
                               children: [
                                 Positioned.fill(
-                                  child: Transform.rotate(
-                                    angle: Theme.of(context).platform ==
-                                            TargetPlatform.android
-                                        ? 3.1416
-                                        : 0, // 180 grados
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(16.r),
-                                      child: CachedNetworkImage(
-                                        imageUrl: espacio.foto,
-                                        fit: BoxFit.cover,
-                                        color: Colors.black.withOpacity(0.25),
-                                        colorBlendMode: BlendMode.darken,
-                                      ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16.r),
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(16.r),
+                                          child: Image.network(
+                                            espacio.foto,
+                                            fit: BoxFit.cover,
+                                            loadingBuilder: (context, child,
+                                                loadingProgress) {
+                                              if (loadingProgress == null)
+                                                return child;
+                                              return const Center(
+                                                  child:
+                                                      CircularProgressIndicator());
+                                            },
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return const Center(
+                                                  child: Icon(
+                                                      Icons.broken_image,
+                                                      size: 40));
+                                            },
+                                          ),
+                                        ),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color:
+                                                Colors.black.withOpacity(0.25),
+                                            borderRadius:
+                                                BorderRadius.circular(16.r),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -127,8 +149,9 @@ class _SeleccionarEspacioScreenState extends State<SeleccionarEspacioScreen>
                                         fontWeight: FontWeight.bold,
                                         shadows: const [
                                           Shadow(
-                                              color: Colors.black54,
-                                              blurRadius: 3)
+                                            color: Colors.black54,
+                                            blurRadius: 3,
+                                          )
                                         ],
                                       ),
                                     ),

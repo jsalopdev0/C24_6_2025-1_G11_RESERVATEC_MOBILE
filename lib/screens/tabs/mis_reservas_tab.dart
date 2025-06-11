@@ -65,7 +65,6 @@ class _MisReservasTabState extends State<MisReservasTab> {
         config: StompConfig.SockJS(
           url:
               'hhttps://reservatec-tesis-backend-8asuen-626be2-31-220-104-112.traefik.me/ws',
-
           onConnect: (StompFrame frame) {
             stompClient!.subscribe(
               destination: '/topic/reservas/$usuarioId',
@@ -311,11 +310,6 @@ class _MisReservasTabState extends State<MisReservasTab> {
             AppTabHeaderAcciones(
               title: 'Mis Reservas',
               acciones: [
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Actualizar reservas',
-                  onPressed: _cargarReservas,
-                ),
                 if (filtroEstados.isNotEmpty || filtroFecha != null)
                   IconButton(
                     icon: const Icon(Icons.clear_all),
@@ -340,211 +334,221 @@ class _MisReservasTabState extends State<MisReservasTab> {
               ],
             ),
             Expanded(
-              child: Builder(
-                builder: (context) {
-                  if (_cargando) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (reservasFiltradas.isEmpty) {
-                    return const Center(
-                        child: Text('No se encontraron reservas'));
-                  } else {
-                    return ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.symmetric(horizontal: 20.w),
-                      itemCount: reservasFiltradas.length,
-                      itemBuilder: (context, index) {
-                        final r = reservasFiltradas[index];
-                        final color = getColorEstado(r.estado);
-                        final GlobalKey capturaKey = GlobalKey();
+              child: RefreshIndicator(
+                onRefresh: _cargarReservas,
+                color: const Color(0xFF00AEEF),
+                child: Builder(
+                  builder: (context) {
+                    if (_cargando) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (reservasFiltradas.isEmpty) {
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: const [
+                          SizedBox(height: 100),
+                          Center(child: Text('No se encontraron reservas')),
+                        ],
+                      );
+                    } else {
+                      return ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        itemCount: reservasFiltradas.length,
+                        itemBuilder: (context, index) {
+                          final r = reservasFiltradas[index];
+                          final color = getColorEstado(r.estado);
+                          final GlobalKey capturaKey = GlobalKey();
 
-                        return RepaintBoundary(
-                          key: capturaKey,
-                          child: Container(
-                            margin: EdgeInsets.only(bottom: 12.h),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12.r),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: color,
-                                    borderRadius: BorderRadius.vertical(
-                                        top: Radius.circular(12.r)),
-                                  ),
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 12.w, vertical: 8.h),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.flag,
-                                          color: Colors.white, size: 18),
-                                      SizedBox(width: 8.w),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              r.espacio,
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16.sp,
-                                              ),
-                                            ),
-                                            SizedBox(height: 2.h),
-                                            Text(
-                                              'Código: ${r.codigoReserva}',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 13.sp,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                          return RepaintBoundary(
+                            key: capturaKey,
+                            child: Container(
+                              margin: EdgeInsets.only(bottom: 12.h),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12.r),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      borderRadius: BorderRadius.vertical(
+                                        top: Radius.circular(12.r),
                                       ),
-                                      if (r.estado.toUpperCase() == 'ACTIVA')
+                                    ),
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 12.w, vertical: 8.h),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.flag,
+                                            color: Colors.white, size: 18),
+                                        SizedBox(width: 8.w),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                r.espacio,
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16.sp,
+                                                ),
+                                              ),
+                                              SizedBox(height: 2.h),
+                                              Text(
+                                                'Código: ${r.codigoReserva}',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13.sp,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (r.estado.toUpperCase() == 'ACTIVA')
+                                          GestureDetector(
+                                            onTap: () async {
+                                              showGeneralDialog(
+                                                context: context,
+                                                barrierDismissible: true,
+                                                barrierLabel:
+                                                    'cancelar_reserva',
+                                                pageBuilder: (_, __, ___) {
+                                                  return ConfirmarCancelarReservaModal(
+                                                    onConfirmar: () async {
+                                                      try {
+                                                        await ReservaService
+                                                            .cancelarReserva(
+                                                                r.id);
+                                                        ScaffoldMessenger.of(
+                                                                context)
+                                                            .showSnackBar(
+                                                          const SnackBar(
+                                                            content: Text(
+                                                              'Reserva cancelada correctamente',
+                                                              style: TextStyle(
+                                                                  fontSize: 14,
+                                                                  color: Colors
+                                                                      .white),
+                                                            ),
+                                                            backgroundColor:
+                                                                Colors.green,
+                                                          ),
+                                                        );
+                                                        _cargarReservas();
+                                                      } catch (e) {
+                                                        ScaffoldMessenger.of(
+                                                                context)
+                                                            .showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              e
+                                                                  .toString()
+                                                                  .replaceFirst(
+                                                                      'Exception: ',
+                                                                      ''),
+                                                              style: const TextStyle(
+                                                                  fontSize: 14,
+                                                                  color: Colors
+                                                                      .black87),
+                                                            ),
+                                                            backgroundColor:
+                                                                const Color(
+                                                                    0xFFFFF3CD),
+                                                          ),
+                                                        );
+                                                      }
+                                                    },
+                                                  );
+                                                },
+                                              );
+                                            },
+                                            child: const Icon(Icons.cancel,
+                                                color: Colors.white, size: 18),
+                                          ),
+                                        const SizedBox(width: 8),
                                         GestureDetector(
                                           onTap: () async {
-                                            showGeneralDialog(
-                                              context: context,
-                                              barrierDismissible: true,
-                                              barrierLabel: 'cancelar_reserva',
-                                              pageBuilder: (_, __, ___) {
-                                                return ConfirmarCancelarReservaModal(
-                                                  onConfirmar: () async {
-                                                    try {
-                                                      await ReservaService
-                                                          .cancelarReserva(
-                                                              r.id);
+                                            try {
+                                              final boundary = capturaKey
+                                                      .currentContext
+                                                      ?.findRenderObject()
+                                                  as RenderRepaintBoundary?;
+                                              if (boundary == null) return;
 
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                            'Reserva cancelada correctamente',
-                                                            style: TextStyle(
-                                                                fontSize: 14,
-                                                                color: Colors
-                                                                    .white),
-                                                          ),
-                                                          backgroundColor:
-                                                              Colors.green,
-                                                        ),
-                                                      );
+                                              final image = await boundary
+                                                  .toImage(pixelRatio: 3.0);
+                                              final byteData =
+                                                  await image.toByteData(
+                                                      format: ui
+                                                          .ImageByteFormat.png);
+                                              final pngBytes = byteData!.buffer
+                                                  .asUint8List();
 
-                                                      _cargarReservas();
-                                                    } catch (e) {
-                                                      ScaffoldMessenger.of(
-                                                              context)
-                                                          .showSnackBar(
-                                                        SnackBar(
-                                                          content: Text(
-                                                            e
-                                                                .toString()
-                                                                .replaceFirst(
-                                                                    'Exception: ',
-                                                                    ''),
-                                                            style: const TextStyle(
-                                                                fontSize: 14,
-                                                                color: Colors
-                                                                    .black87),
-                                                          ),
-                                                          backgroundColor:
-                                                              const Color(
-                                                                  0xFFFFF3CD),
-                                                        ),
-                                                      );
-                                                    }
-                                                  },
-                                                );
-                                              },
-                                            );
+                                              final tempDir =
+                                                  await getTemporaryDirectory();
+                                              final file = await File(
+                                                      '${tempDir.path}/reserva_${DateTime.now().millisecondsSinceEpoch}.png')
+                                                  .create();
+                                              await file.writeAsBytes(pngBytes);
+
+                                              await Share.shareXFiles(
+                                                [
+                                                  XFile(file.path,
+                                                      mimeType: 'image/png')
+                                                ],
+                                                subject:
+                                                    'Mira mi reserva en ReservaTec',
+                                              );
+                                            } catch (e) {
+                                              debugPrint(
+                                                  'Error al compartir reserva: $e');
+                                            }
                                           },
-                                          child: const Icon(Icons.cancel,
+                                          child: const Icon(Icons.share,
                                               color: Colors.white, size: 18),
                                         ),
-                                      const SizedBox(width: 8),
-                                      GestureDetector(
-                                        onTap: () async {
-                                          try {
-                                            final boundary = capturaKey
-                                                    .currentContext
-                                                    ?.findRenderObject()
-                                                as RenderRepaintBoundary?;
-                                            if (boundary == null) return;
-
-                                            final image = await boundary
-                                                .toImage(pixelRatio: 3.0);
-                                            final byteData =
-                                                await image.toByteData(
-                                                    format:
-                                                        ui.ImageByteFormat.png);
-                                            final pngBytes =
-                                                byteData!.buffer.asUint8List();
-
-                                            final tempDir =
-                                                await getTemporaryDirectory();
-                                            final file = await File(
-                                                    '${tempDir.path}/reserva_${DateTime.now().millisecondsSinceEpoch}.png')
-                                                .create();
-                                            await file.writeAsBytes(pngBytes);
-
-                                            await Share.shareXFiles(
-                                              [
-                                                XFile(file.path,
-                                                    mimeType: 'image/png')
-                                              ],
-                                              subject:
-                                                  'Mira mi reserva en ReservaTec',
-                                            );
-                                          } catch (e) {
-                                            debugPrint(
-                                                'Error al compartir reserva: $e');
-                                          }
-                                        },
-                                        child: const Icon(Icons.share,
-                                            color: Colors.white, size: 18),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                Padding(
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 12.w, vertical: 8.h),
-                                  child: Row(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          const Icon(Icons.access_time,
-                                              size: 16),
-                                          SizedBox(width: 4.w),
-                                          Text('${r.horaInicio} - ${r.horaFin}',
-                                              style: TextStyle(
-                                                  color: Colors.black54,
-                                                  fontSize: 14.sp)),
-                                        ],
-                                      ),
-                                      const Spacer(),
-                                      Text(formatFecha(r.fecha),
-                                          style: TextStyle(
-                                              color: Colors.black54,
-                                              fontSize: 14.sp)),
-                                    ],
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 12.w, vertical: 8.h),
+                                    child: Row(
+                                      children: [
+                                        Row(
+                                          children: [
+                                            const Icon(Icons.access_time,
+                                                size: 16),
+                                            SizedBox(width: 4.w),
+                                            Text(
+                                                '${r.horaInicio} - ${r.horaFin}',
+                                                style: TextStyle(
+                                                    color: Colors.black54,
+                                                    fontSize: 14.sp)),
+                                          ],
+                                        ),
+                                        const Spacer(),
+                                        Text(formatFecha(r.fecha),
+                                            style: TextStyle(
+                                                color: Colors.black54,
+                                                fontSize: 14.sp)),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  }
-                },
+                          );
+                        },
+                      );
+                    }
+                  },
+                ),
               ),
             ),
           ],

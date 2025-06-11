@@ -223,51 +223,67 @@ class _SeleccionarHorarioScreenState extends State<SeleccionarHorarioScreen> {
                               style: TextStyle(fontSize: 16.sp)),
                           SizedBox(height: 8.h),
                           Container(
-                            height: 160.h,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16.r),
-                            ),
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: Transform.rotate(
-                                    angle: Theme.of(context).platform ==
-                                            TargetPlatform.android
-                                        ? 3.1416
-                                        : 0,
+                              height: 160.h,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16.r),
+                              ),
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(16.r),
-                                      child: Image.network(
-                                        widget.imagen,
-                                        fit: BoxFit.cover,
-                                        color: Colors.black.withOpacity(0.25),
-                                        colorBlendMode: BlendMode.darken,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Align(
-                                  alignment: Alignment.bottomLeft,
-                                  child: Padding(
-                                    padding: EdgeInsets.all(12.w),
-                                    child: Text(
-                                      widget.nombreEspacio,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16.sp,
-                                        shadows: const [
-                                          Shadow(
-                                              color: Colors.black54,
-                                              blurRadius: 3),
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          Image.network(
+                                            widget.imagen,
+                                            fit: BoxFit.cover,
+                                            loadingBuilder: (context, child,
+                                                loadingProgress) {
+                                              if (loadingProgress == null)
+                                                return child;
+                                              return const Center(
+                                                  child:
+                                                      CircularProgressIndicator());
+                                            },
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                              return const Center(
+                                                  child: Icon(
+                                                      Icons.broken_image,
+                                                      size: 40));
+                                            },
+                                          ),
+                                          Container(
+                                            color:
+                                                Colors.black.withOpacity(0.25),
+                                          ),
                                         ],
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
+                                  Align(
+                                    alignment: Alignment.bottomLeft,
+                                    child: Padding(
+                                      padding: EdgeInsets.all(12.w),
+                                      child: Text(
+                                        widget.nombreEspacio,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16.sp,
+                                          shadows: const [
+                                            Shadow(
+                                              color: Colors.black54,
+                                              blurRadius: 3,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )),
                           SizedBox(height: 24.h),
                           Text('Selecciona la fecha:',
                               style: TextStyle(
@@ -303,9 +319,10 @@ class _SeleccionarHorarioScreenState extends State<SeleccionarHorarioScreen> {
                           if (horarios.isEmpty ||
                               horarios.length == horariosOcupados.length)
                             Text(
-                                'Todos los horarios ya están reservados para esta fecha.',
-                                style: TextStyle(
-                                    fontSize: 14.sp, color: Colors.redAccent)),
+                              'Todos los horarios ya están reservados para esta fecha.',
+                              style: TextStyle(
+                                  fontSize: 14.sp, color: Colors.redAccent),
+                            ),
                           GridView.count(
                             shrinkWrap: true,
                             crossAxisCount: 2,

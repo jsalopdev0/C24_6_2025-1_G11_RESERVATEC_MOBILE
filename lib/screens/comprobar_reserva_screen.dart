@@ -174,9 +174,10 @@ class _ComprobarReservaScreenState extends State<ComprobarReservaScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                        'Por favor, verifica los datos antes de confirmar tu reserva.',
-                        style: TextStyle(
-                            fontSize: 15.sp, color: Colors.grey[700])),
+                      'Por favor, verifica los datos antes de confirmar tu reserva.',
+                      style:
+                          TextStyle(fontSize: 15.sp, color: Colors.grey[700]),
+                    ),
                     SizedBox(height: 16.h),
                     Container(
                       height: 160.h,
@@ -187,26 +188,41 @@ class _ComprobarReservaScreenState extends State<ComprobarReservaScreen> {
                       child: Stack(
                         children: [
                           Positioned.fill(
-                            child: Transform.rotate(
-                              angle: Theme.of(context).platform ==
-                                      TargetPlatform.android
-                                  ? 3.1416
-                                  : 0,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16.r),
-                                child: widget.imagen.startsWith('http')
-                                    ? Image.network(
-                                        widget.imagen,
-                                        fit: BoxFit.cover,
-                                        color: Colors.black.withOpacity(0.25),
-                                        colorBlendMode: BlendMode.darken,
-                                      )
-                                    : Image.asset(
-                                        widget.imagen,
-                                        fit: BoxFit.cover,
-                                        color: Colors.black.withOpacity(0.25),
-                                        colorBlendMode: BlendMode.darken,
-                                      ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16.r),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  widget.imagen.startsWith('http')
+                                      ? Image.network(
+                                          widget.imagen,
+                                          fit: BoxFit.cover,
+                                          loadingBuilder: (context, child,
+                                              loadingProgress) {
+                                            if (loadingProgress == null)
+                                              return child;
+                                            return const Center(
+                                                child:
+                                                    CircularProgressIndicator());
+                                          },
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return const Center(
+                                                child: Icon(Icons.broken_image,
+                                                    size: 40));
+                                          },
+                                        )
+                                      : Image.asset(
+                                          widget.imagen,
+                                          fit: BoxFit.cover,
+                                        ),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.25),
+                                      borderRadius: BorderRadius.circular(16.r),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -222,7 +238,9 @@ class _ComprobarReservaScreenState extends State<ComprobarReservaScreen> {
                                   fontWeight: FontWeight.bold,
                                   shadows: const [
                                     Shadow(
-                                        color: Colors.black54, blurRadius: 3),
+                                      color: Colors.black54,
+                                      blurRadius: 3,
+                                    ),
                                   ],
                                 ),
                               ),
